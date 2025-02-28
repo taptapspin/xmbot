@@ -33,25 +33,26 @@ def run_bot():
             print("Restarting bot in 5 seconds...")
             time.sleep(5)
 
-# Define the base directory from environment variable or default to current directory
-base_dir = os.getenv('BASE_DIR', os.path.dirname(__file__))
+script_dir = os.path.dirname(__file__)
 
-# Define file paths using environment variable
+# Define the base directory
+base_dir = os.path.dirname(__file__)
+
+# Define file paths
 user_chat_ids_file = os.path.join(base_dir, 'user_chat_ids.json')
 user_data_file = os.path.join(base_dir, 'user_data.xlsx')
-config_file = os.path.join(base_dir, 'config.json')
-broadcasts_db_file = os.path.join(base_dir, 'broadcasts.db')
-postmedia_db_file = os.path.join(base_dir, 'postmedia.db')
-bot_config_file = os.path.join(base_dir, 'bot_config.txt')
+
+# Define the path to the config.json file
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config.json')
 
 def read_config():
-    if not os.path.exists(config_file):
+    if not os.path.exists(CONFIG_FILE):
         return {}
-    with open(config_file, 'r') as file:
+    with open(CONFIG_FILE, 'r') as file:
         return json.load(file)
-
+    
 def write_config(config):
-    with open(config_file, 'w') as file:
+    with open(CONFIG_FILE, 'w') as file:
         json.dump(config, file, indent=4)    
 
 def reload_config():
@@ -95,18 +96,18 @@ def bot_start(message):
     user_menu_history[message.chat.id] = []
     handle_new_user(message)
     send_post(message.chat.id)
-
+    
 
 # Define the list_admins_command function
 def list_admins_command(message):
     logging.info(f"User ID: {message.from_user.id}, Bot Owner ID: {bot_owner_id}, Admins: {config['admins']}")
     admin_list = "\n".join([f"{bot.get_chat(admin).username} (ID: {admin})" for admin in config['admins']])
-
+    
     # Create inline keyboard with "Back" button
     keyboard = types.InlineKeyboardMarkup()
     back_button = types.InlineKeyboardButton(text="Back", callback_data="back")
     keyboard.add(back_button)
-
+    
     bot.send_message(message.chat.id, f"Current admins:\n{admin_list}", reply_markup=keyboard)
 
 # Handle the callback query for "list_admins"
@@ -130,17 +131,17 @@ def send_main_menu(chat_id):
 
 def send_post(chat_id):
     logging.info(f"Sending post to {chat_id}")
-
+    
     # Get the media path from the configuration
     media_base_path = os.path.normpath(config['media_path'])
     media_type = config.get('media_type', 'mp4')  # Default to 'mp4' if not set
     media_path = os.path.join(media_base_path, f'media_{config["media_number"]}.{media_type}')
-
+    
     logging.info(f"Media path: {media_path}")
     try:
         with open(media_path, 'rb') as media:
             inline_keyboard = types.InlineKeyboardMarkup() 
-        
+            
             # Conditionally add the Free Credit Bonus button
             if config.get('free_credit_button_visible', True):
                 free_credit = types.InlineKeyboardButton(
@@ -148,7 +149,7 @@ def send_post(chat_id):
                     callback_data="free_credit"
                 )
                 inline_keyboard.add(free_credit)
-        
+            
             join_my_button = types.InlineKeyboardButton(
                 text=config.get('join_my_text', "JOIN MY🇲🇾"), 
                 url=config.get('join_my_url', 'https://example.com')
@@ -172,7 +173,7 @@ def send_post(chat_id):
             inline_keyboard.row(join_my_button, join_sg_button)
             inline_keyboard.add(freecr_365_button)
             inline_keyboard.row(lucky_number_button, sport_arena_button)
-        
+            
             # Add custom buttons according to their specified format
             row_buttons = []
             if 'custom_buttons' in config:
@@ -182,7 +183,7 @@ def send_post(chat_id):
                             row_buttons.append(types.InlineKeyboardButton(text=button['text'], url=button['url']))
                         else:
                             inline_keyboard.add(types.InlineKeyboardButton(text=button['text'], url=button['url']))
-        
+            
             # Add row buttons in a single row
             if row_buttons:
                 inline_keyboard.row(*row_buttons)
@@ -191,21 +192,21 @@ def send_post(chat_id):
             if 'menus' in config:
                 for menu_name in config['menus']:
                     inline_keyboard.add(types.InlineKeyboardButton(text=menu_name, callback_data=f"menu_{menu_name}"))
-        
+            
             if chat_id in config['admins'] or chat_id == bot_owner_id:
                 broadcast_button = types.InlineKeyboardButton(text="📢 Broadcast 📢", callback_data="broadcast")
                 inline_keyboard.add(broadcast_button)
                 channel_post = types.InlineKeyboardButton(text="📥 Channel Post 📥", callback_data="channelpost")
                 inline_keyboard.add(channel_post)
-            
+                
                 # Add the toggle button for Free Credit Bonus
                 free_credit_toggle_text = "Free Credit On" if config.get('free_credit_button_visible', True) else "Free Credit Off"
                 free_credit_toggle_button = types.InlineKeyboardButton(text=free_credit_toggle_text, callback_data="toggle_free_credit")
                 inline_keyboard.add(free_credit_toggle_button)
-            
+                
                 settings_button = types.InlineKeyboardButton(text="⚙️Settings⚙️", callback_data="settings")
                 inline_keyboard.add(settings_button)
-        
+            
             # Check the media type and send accordingly
             media_type = config.get('media_type', 'mp4')
             welcome_message = config.get('welcome_message', 'Welcome!')
@@ -229,7 +230,7 @@ def handle_toggle_free_credit(call):
     message_id = call.message.message_id
     config['free_credit_button_visible'] = not config.get('free_credit_button_visible', True)
     write_config(config)
-
+    
     # Refresh the settings menu
     send_post(chat_id)
 
